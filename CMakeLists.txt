@@ -68,12 +68,14 @@ endif()
 
 # XXX check for glm
 
-# Screw it, cmake's FindProtobuf module can not find protobuf in 
-# a non-standard place. Use pkg-config instead.
-pkg_check_modules(PROTOBUF REQUIRED protobuf)
-
-if(NOT PROTOBUF_FOUND)
-    message (FATAL_ERROR "Cannot find Protobuf")
+find_package(Protobuf REQUIRED)
+if(NOT Protobuf_FOUND)
+    # Screw it, cmake's FindProtobuf module can not find protobuf in 
+    # a non-standard place. Use pkg-config instead.
+    pkg_check_modules(PROTOBUF REQUIRED protobuf)
+    if(NOT PROTOBUF_FOUND)
+        message (FATAL_ERROR "Cannot find Protobuf")
+    endif()
 endif()
 
 set(CMAKE_CXX_STANDARD 11)

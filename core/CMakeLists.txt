@@ -31,7 +31,7 @@ add_custom_command(
     OUTPUT 
         "${PROTO_CPP_CPP}" "${PROTO_CPP_H}"
     COMMAND
-        "${PROTOBUF_PREFIX}/bin/protoc" 
+        "${Protobuf_PROTOC_EXECUTABLE}"
         "--cpp_out=${CMAKE_BINARY_DIR}" 
         "--python_out=${CMAKE_SOURCE_DIR}/render_ospray" 
         "--proto_path=${CMAKE_SOURCE_DIR}/core" 
