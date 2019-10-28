@@ -68,6 +68,12 @@ std::string     current_renderer_type;
 OSPWorld        ospray_world = nullptr;
 OSPCamera       ospray_camera = nullptr;
 
+#if 0 // Simple, but not pretty, way to limit console messages
+#define DEBUG_MSG(...) printf(__VA_ARGS__)
+#else
+#define DEBUG_MSG(...) while(0)
+#endif
+
 struct SceneMaterial
 {
     MaterialUpdate::Type    type;
@@ -266,7 +272,7 @@ ensure_plugin_is_loaded(GenerateFunctionResult &result, PluginDefinition &defini
 {
     if (name == "")
     {
-        printf("No plugin name provided!\n");
+        fprintf(stderr, "No plugin name provided!\n");
         return false;
     }
 
@@ -293,13 +299,13 @@ ensure_plugin_is_loaded(GenerateFunctionResult &result, PluginDefinition &defini
     {
         // Plugin not loaded yet (or failed to load the previous attempt)
 
-        printf("Plugin '%s' not loaded yet\n", internal_name.c_str());
+        fprintf(stderr, "Plugin '%s' not loaded yet\n", internal_name.c_str());
 
         std::string plugin_file = internal_name + ".so";
 
         // Open plugin shared library
 
-        printf("Loading plugin %s (%s)\n", internal_name.c_str(), plugin_file.c_str());
+        fprintf(stderr, "Loading plugin %s (%s)\n", internal_name.c_str(), plugin_file.c_str());
 
         void *plugin = dlopen(plugin_file.c_str(), RTLD_LAZY);
 
@@ -374,7 +380,7 @@ check_plugin_parameters(GenerateFunctionResult& result, const PluginParameter *p
         {
             if (!(flags & FLAG_OPTIONAL))
             {
-                printf("ERROR: Missing mandatory parameter '%s'!\n", name);
+                fprintf(stderr, "ERROR: Missing mandatory parameter '%s'!\n", name);
                 ok = false;
             }
             continue;
@@ -387,7 +393,7 @@ check_plugin_parameters(GenerateFunctionResult& result, const PluginParameter *p
             // Array value
             if (!value.is_array())
             {
-                printf("ERROR: Expected array (of length %d) for parameter '%s'!\n", length, name);
+                fprintf(stderr, "ERROR: Expected array (of length %d) for parameter '%s'!\n", length, name);
                 ok = false;
                 continue;
             }
@@ -399,7 +405,7 @@ check_plugin_parameters(GenerateFunctionResult& result, const PluginParameter *p
             // Scalar value
             if (!value.is_primitive())
             {
-                printf("ERROR: Expected primitive value for parameter '%s', but found array of length %d!\n", name, value.size());
+                fprintf(stderr, "ERROR: Expected primitive value for parameter '%s', but found array of length %lu!\n", name, value.size());
                 ok = false;
                 continue;
             }
@@ -409,7 +415,7 @@ check_plugin_parameters(GenerateFunctionResult& result, const PluginParameter *p
             case PARAM_INT:
                 if (!value.is_number_integer())
                 {
-                    printf("ERROR: Expected integer value for parameter '%s'!\n", name);
+                    fprintf(stderr, "ERROR: Expected integer value for parameter '%s'!\n", name);
                     ok = false;
                     continue;
                 }
@@ -418,7 +424,7 @@ check_plugin_parameters(GenerateFunctionResult& result, const PluginParameter *p
             case PARAM_FLOAT:
                 if (!value.is_number_float() && !value.is_number_integer())
                 {
-                    printf("ERROR: Expected float value for parameter '%s'!\n", name);
+                    fprintf(stderr, "ERROR: Expected float value for parameter '%s'!\n", name);
                     ok = false;
                     continue;
                 }
@@ -428,7 +434,7 @@ check_plugin_parameters(GenerateFunctionResult& result, const PluginParameter *p
             case PARAM_STRING:
                 if (!value.is_string())
                 {
-                    printf("ERROR: Expected string value for parameter '%s'!\n", name);
+                    fprintf(stderr, "ERROR: Expected string value for parameter '%s'!\n", name);
                     ok = false;
                     continue;
                 }
@@ -451,7 +457,7 @@ delete_plugin_instance(const std::string& name)
 
     if (it == plugin_instances.end())
     {
-        printf("ERROR: plugin instance '%s' to delete not found!\n", name.c_str());
+        fprintf(stderr, "ERROR: plugin instance '%s' to delete not found!\n", name.c_str());
         return;
     }
 
@@ -470,7 +476,7 @@ delete_plugin_instance(const std::string& name)
         }
         else
         {
-            printf("... WARNING: user data non-null on plugin instance of type '%s', but no clear data function set\n", 
+            fprintf(stderr, "... WARNING: user data non-null on plugin instance of type '%s', but no clear data function set\n", 
                 internal_name.c_str());
         }
     }
@@ -489,20 +495,20 @@ delete_blender_mesh(const std::string& name)
 
     if (it == scene_data_types.end())
     {
-        printf("ERROR: blender mesh to delete '%s' not found!\n", name.c_str());
+        fprintf(stderr, "ERROR: blender mesh to delete '%s' not found!\n", name.c_str());
         return;
     }
 
     if (it->second != SDT_BLENDER_MESH)
     {
-        printf("ERROR: blender mesh to delete '%s' is not of type SDT_BLENDER_MESH!\n", name.c_str());
+        fprintf(stderr, "ERROR: blender mesh to delete '%s' is not of type SDT_BLENDER_MESH!\n", name.c_str());
         return;
     }
 
     BlenderMeshMap::iterator bm = blender_meshes.find(name);
     if (bm == blender_meshes.end())
     {
-        printf("ERROR: blender mesh to delete '%s' not found!\n", name.c_str());
+        fprintf(stderr, "ERROR: blender mesh to delete '%s' not found!\n", name.c_str());
         return;        
     }
 
@@ -522,7 +528,7 @@ delete_object(const std::string& object_name)
 
     if (it == scene_objects.end())
     {
-        printf("ERROR: object to delete '%s' not found!\n", object_name.c_str());
+        fprintf(stderr, "ERROR: object to delete '%s' not found!\n", object_name.c_str());
         return;
     }
 
@@ -539,7 +545,7 @@ delete_scene_data(const std::string& name)
 
     if (it == scene_data_types.end())
     {
-        printf("ERROR: scene data '%s' to delete not found!\n", name.c_str());
+        fprintf(stderr, "ERROR: scene data '%s' to delete not found!\n", name.c_str());
         return;
     }
 
@@ -592,7 +598,7 @@ find_scene_object(const std::string& name, SceneObjectType type, bool delete_exi
 
     if (it == scene_objects.end())
     {
-        printf("... No existing object\n");
+        DEBUG_MSG("... No existing object\n");
         return nullptr;
     }
     
@@ -601,7 +607,7 @@ find_scene_object(const std::string& name, SceneObjectType type, bool delete_exi
     {
         if (delete_existing_mismatch)
         {
-            printf("... Existing object is not of type %s, but of type %s, deleting\n", 
+            DEBUG_MSG("... Existing object is not of type %s, but of type %s, deleting\n", 
                 SceneObjectType_names[type], SceneObjectType_names[scene_object->type]);
             delete_object(name);
             return nullptr;
@@ -611,7 +617,7 @@ find_scene_object(const std::string& name, SceneObjectType type, bool delete_exi
     }
     else
     {        
-        printf("... Existing object matches type %s\n", SceneObjectType_names[type]);
+        DEBUG_MSG("... Existing object matches type %s\n", SceneObjectType_names[type]);
         return scene_object;
     }
 }
@@ -623,17 +629,17 @@ scene_data_with_type_exists(const std::string& name, SceneDataType type)
 
     if (it == scene_data_types.end())
     {
-        printf("... Scene data '%s' does not exist\n", name.c_str());
+        DEBUG_MSG("... Scene data '%s' does not exist\n", name.c_str());
         return false;
     }
     else if (it->second != type)
     {
-        printf("... Scene data '%s' is not of type %s, but of type %s\n", 
+        DEBUG_MSG("... Scene data '%s' is not of type %s, but of type %s\n", 
             name.c_str(), SceneDataType_names[type], SceneDataType_names[it->second]);
         return false;
     }
 
-    printf("... Scene data '%s' found, type %s\n", name.c_str(), SceneDataType_names[type]);
+    DEBUG_MSG("... Scene data '%s' found, type %s\n", name.c_str(), SceneDataType_names[type]);
     
     return true;        
 }
@@ -645,7 +651,7 @@ scene_data_with_type_exists(const std::string& name, SceneDataType type)
 OSPTransferFunction
 create_transfer_function(const std::string& name, float minval, float maxval)
 {
-    printf("... create_transfer_function('%s', %.6f, %.6f)\n", name.c_str(), minval, maxval);
+    DEBUG_MSG("... create_transfer_function('%s', %.6f, %.6f)\n", name.c_str(), minval, maxval);
 
 	/*if (name == "jet")
 	{
@@ -692,21 +698,21 @@ create_transfer_function(const std::string& name, float minval, float maxval)
 OSPTransferFunction
 create_user_transfer_function(float minval, float maxval, const Volume& volume, int num_tf_entries=128)
 {
-    printf("... create_user_transfer_function(%.6f, %.6f, ...)\n", minval, maxval);
+    DEBUG_MSG("... create_user_transfer_function(%.6f, %.6f, ...)\n", minval, maxval);
 
     if (volume.tf_positions_size() != volume.tf_colors_size())
     {
-        printf("... WARNING: number of positions and colors not equal, falling back to default TF\n");
+        fprintf(stderr, "... WARNING: number of positions and colors not equal, falling back to default TF\n");
         return create_transfer_function("cool2warm", minval, maxval);
     }
 
     const int& num_positions = volume.tf_positions_size();
 
-    printf("Input (%d positions):\n", num_positions);
+    DEBUG_MSG("Input (%d positions):\n", num_positions);
     for (int i = 0; i < num_positions; i++)
     {
         const Color& col = volume.tf_colors(i);
-        printf("[%d] pos = %.3f; col = %.3f %.3f %.3f; %.3f\n", i, volume.tf_positions(i), 
+        DEBUG_MSG("[%d] pos = %.3f; col = %.3f %.3f %.3f; %.3f\n", i, volume.tf_positions(i), 
             col.r(), col.g(), col.b(), col.a());
     }
 
@@ -722,7 +728,7 @@ create_user_transfer_function(float minval, float maxval, const Volume& volume, 
     normalized_value = 0.0f;
 
     // XXX need to verify correctness here
-    //printf("TF:\n");
+    //DEBUG_MSG("TF:\n");
     for (int i = 0; i < num_tf_entries; i++)
     {
         // Find first position that is <= normalized_value        
@@ -766,7 +772,7 @@ create_user_transfer_function(float minval, float maxval, const Volume& volume, 
             }
         }    
 
-        //printf("[%d] %f, %f, %f; %f\n", i, r, g, b, a);
+        //DEBUG_MSG("[%d] %f, %f, %f; %f\n", i, r, g, b, a);
 
         tf_colors[3*i+0] = r;
         tf_colors[3*i+1] = g;
@@ -806,7 +812,7 @@ handle_update_plugin_instance(TCPSocket *sock)
 
     const std::string& data_name = update.name();
 
-    printf("PLUGIN INSTANCE '%s'\n", data_name.c_str());
+    DEBUG_MSG("PLUGIN INSTANCE '%s'\n", data_name.c_str());
 
     bool create_new_instance;
     PluginInstance *plugin_instance;
@@ -825,30 +831,30 @@ handle_update_plugin_instance(TCPSocket *sock)
         plugin_type = PT_SCENE;
         break;
     default:
-        printf("... WARNING: unknown plugin instance type %d!\n", update.type());
+        fprintf(stderr, "... WARNING: unknown plugin instance type %d!\n", update.type());
         return false;
     }
 
     const char *plugin_type_name = PluginType_names[plugin_type];
     const std::string &plugin_name = update.plugin_name();
 
-    printf("... plugin type: %s\n", plugin_type_name);
-    printf("... plugin name: '%s'\n", plugin_name.c_str());
+    DEBUG_MSG("... plugin type: %s\n", plugin_type_name);
+    DEBUG_MSG("... plugin name: '%s'\n", plugin_name.c_str());
 
     const char *s_plugin_parameters = update.plugin_parameters().c_str();
-    //printf("Received plugin parameters:\n%s\n", s_plugin_parameters);
+    DEBUG_MSG("Received plugin parameters:\n%s\n", s_plugin_parameters);
     const json &plugin_parameters = json::parse(s_plugin_parameters);
-    printf("... parameters:\n");
-    printf("%s\n", plugin_parameters.dump(4).c_str());
+    DEBUG_MSG("... parameters:\n");
+    DEBUG_MSG("%s\n", plugin_parameters.dump(4).c_str());
     
 #if 0
     const char *s_custom_properties = update.custom_properties().c_str();
-    //printf("Received custom properties:\n%s\n", s_custom_properties);
+    DEBUG_MSG("Received custom properties:\n%s\n", s_custom_properties);
     const json &custom_properties = json::parse(s_custom_properties);
     if (!custom_properties.empty())
     {
-        printf("... custom properties:\n");
-        printf("%s\n", custom_properties.dump(4).c_str());
+        DEBUG_MSG("... custom properties:\n");
+        DEBUG_MSG("%s\n", custom_properties.dump(4).c_str());
     }
 #endif
 
@@ -866,7 +872,7 @@ handle_update_plugin_instance(TCPSocket *sock)
         // XXX could use internal name?
         if (plugin_instance->type != plugin_type || plugin_instance->plugin_name != plugin_name)
         {
-            printf("... Existing plugin (type %s, name '%s') does't match, overwriting!\n", 
+            DEBUG_MSG("... Existing plugin (type %s, name '%s') does't match, overwriting!\n", 
                 PluginType_names[plugin_instance->type], plugin_name.c_str());
             delete_plugin_instance(data_name);            
         }
@@ -880,19 +886,19 @@ handle_update_plugin_instance(TCPSocket *sock)
 
             if (parameters_hash != plugin_instance->parameters_hash)
             {
-                printf("... Parameters changed, re-creating plugin instance\n");
+                DEBUG_MSG("... Parameters changed, re-creating plugin instance\n");
                 delete_plugin_instance(data_name);                
             }
 #if 0
             else if (custom_props_hash != plugin_instance->custom_properties_hash)
             {
-                printf("... Custom properties changed, re-running plugin\n");
+                DEBUG_MSG("... Custom properties changed, re-running plugin\n");
                 delete_plugin_instance(data_name);                
             }
 #endif
             else if (plugin_instance->state->uses_renderer_type && plugin_instance->state->renderer != current_renderer_type)
             {
-                printf("... Plugin depends on renderer type, which changed from '%s', re-running plugin\n", 
+                DEBUG_MSG("... Plugin depends on renderer type, which changed from '%s', re-running plugin\n", 
                     plugin_instance->state->renderer.c_str());
                 delete_plugin_instance(data_name);                
             }
@@ -908,7 +914,7 @@ handle_update_plugin_instance(TCPSocket *sock)
 
     if (!create_new_instance)
     {
-        printf("... Cached plugin instance still up-to-date\n");
+        DEBUG_MSG("... Cached plugin instance still up-to-date\n");
         // XXX we misuse GenerateFunctionResult here, as nothing was generated...
         send_protobuf(sock, result);
         return true;
@@ -929,7 +935,7 @@ handle_update_plugin_instance(TCPSocket *sock)
 
     if (create_instance_function == NULL)
     {
-        printf("... ERROR: plugin create_instance_function is NULL!\n");
+        fprintf(stderr, "... ERROR: plugin create_instance_function is NULL!\n");
         result.set_message("Plugin create_instance_function is NULL!");
         send_protobuf(sock, result);
         return false;
@@ -957,21 +963,21 @@ handle_update_plugin_instance(TCPSocket *sock)
 
     struct timeval t0, t1;
 
-    printf("... Calling create_instance function\n");
+    DEBUG_MSG("... Calling create_instance function\n");
     gettimeofday(&t0, NULL);
 
     create_instance_function(plugin_result, state);
 
     gettimeofday(&t1, NULL);
-    printf("... Created instance in %.3fs\n", time_diff(t0, t1));
+    DEBUG_MSG("... Created instance in %.3fs\n", time_diff(t0, t1));
     
     if (!plugin_result.success)
     {
         result.set_success(false);
         result.set_message(plugin_result.message);
         
-        printf("... ERROR: create_instance failed:\n");
-        printf("... %s\n", result.message().c_str());
+        fprintf(stderr, "... ERROR: create_instance failed:\n");
+        fprintf(stderr, "... %s\n", result.message().c_str());
         send_protobuf(sock, result);
         delete state;
         return false;
@@ -990,7 +996,7 @@ handle_update_plugin_instance(TCPSocket *sock)
         {
             send_protobuf(sock, result);
 
-            printf("... ERROR: geometry create_instance did not set an OSPGeometry!\n");
+            fprintf(stderr, "... ERROR: geometry create_instance did not set an OSPGeometry!\n");
             delete state;
             return false;
         }    
@@ -1003,13 +1009,13 @@ handle_update_plugin_instance(TCPSocket *sock)
 
         if (state->volume != nullptr)
         {
-            printf("... volume data range %.6f %.6f\n", state->volume_data_range[0], state->volume_data_range[1]);
+            DEBUG_MSG("... volume data range %.6f %.6f\n", state->volume_data_range[0], state->volume_data_range[1]);
         }
         else
         {
             send_protobuf(sock, result);
 
-            printf("... ERROR: volume create_instance did not set an OSPVolume!\n");
+            fprintf(stderr, "... ERROR: volume create_instance did not set an OSPVolume!\n");
             delete state;
             return false;
         }
@@ -1022,11 +1028,11 @@ handle_update_plugin_instance(TCPSocket *sock)
 
         if (state->group_instances.size() > 0)
         {
-            printf("... %d instances\n", state->group_instances.size());
-            printf("... %d lights\n", state->lights.size());
+            DEBUG_MSG("... %lu instances\n", state->group_instances.size());
+            DEBUG_MSG("... %lu lights\n", state->lights.size());
         }
         else
-            printf("... WARNING: scene create_instance returned zero instances!\n");    
+            fprintf(stderr, "... WARNING: scene create_instance returned zero instances!\n");    
         
         internal_name = "scene";
 
@@ -1060,7 +1066,7 @@ handle_update_plugin_instance(TCPSocket *sock)
 bool
 handle_update_blender_mesh_data(TCPSocket *sock, const std::string& name)
 {
-    printf("DATA '%s' (blender mesh)\n", name.c_str());
+    DEBUG_MSG("DATA '%s' (blender mesh)\n", name.c_str());
 
     BlenderMesh *blender_mesh;
     OSPGeometry geometry;
@@ -1070,7 +1076,7 @@ handle_update_blender_mesh_data(TCPSocket *sock, const std::string& name)
     if (it == scene_data_types.end())
     {
         // No previous mesh with this name
-        printf("... Unseen name, creating new mesh\n");
+        DEBUG_MSG("... Unseen name, creating new mesh\n");
         create_new_mesh = true;
     }
     else
@@ -1080,13 +1086,13 @@ handle_update_blender_mesh_data(TCPSocket *sock, const std::string& name)
 
         if (type != SDT_BLENDER_MESH)
         {
-            printf("... WARNING: data is currently of type %s, overwriting with new mesh!\n", SceneDataType_names[type]);
+            fprintf(stderr, "... WARNING: data is currently of type %s, overwriting with new mesh!\n", SceneDataType_names[type]);
             delete_scene_data(name);
             create_new_mesh = true;
         }
         else
         {
-            printf("... Updating existing mesh\n");            
+            DEBUG_MSG("... Updating existing mesh\n");            
             blender_mesh = blender_meshes[name];
             geometry = blender_mesh->geometry;
             // As we're updating an existing geometry these might not get set 
@@ -1116,11 +1122,11 @@ handle_update_blender_mesh_data(TCPSocket *sock, const std::string& name)
     nt = blender_mesh->num_triangles = mesh_data.num_triangles();
     flags = mesh_data.flags();
 
-    printf("... %d vertices, %d triangles, flags 0x%08x\n", nv, nt, flags);
+    DEBUG_MSG("... %d vertices, %d triangles, flags 0x%08x\n", nv, nt, flags);
 
     if (nv == 0 || nt == 0)
     {
-        printf("... WARNING: mesh without vertices/triangles not allowed, ignoring!\n");
+        fprintf(stderr, stderr, "... WARNING: mesh without vertices/triangles not allowed, ignoring!\n");
         // XXX release geometry
         return false;
     }
@@ -1133,7 +1139,7 @@ handle_update_blender_mesh_data(TCPSocket *sock, const std::string& name)
 
     if (flags & MeshData::NORMALS)
     {
-        printf("... Mesh has normals\n");
+        DEBUG_MSG("... Mesh has normals\n");
         normal_buffer.reserve(nv*3);
         if (sock->recvall(&normal_buffer[0], nv*3*sizeof(float)) == -1)
             return false;
@@ -1141,7 +1147,7 @@ handle_update_blender_mesh_data(TCPSocket *sock, const std::string& name)
 
     if (flags & MeshData::VERTEX_COLORS)
     {
-        printf("... Mesh has vertex colors\n");
+        DEBUG_MSG("... Mesh has vertex colors\n");
         vertex_color_buffer.reserve(nv*4);
         if (sock->recvall(&vertex_color_buffer[0], nv*4*sizeof(float)) == -1)
             return false;
@@ -1186,8 +1192,8 @@ update_blender_mesh_object(const UpdateObject& update)
     const std::string& object_name = update.name();
     const std::string& linked_data = update.data_link();
 
-    printf("OBJECT '%s' (blender mesh)\n", object_name.c_str());   
-    printf("--> '%s'\n", linked_data.c_str());
+    DEBUG_MSG("OBJECT '%s' (blender mesh)\n", object_name.c_str());   
+    DEBUG_MSG("--> '%s'\n", linked_data.c_str());
 
     SceneObject     *scene_object;
     SceneObjectMesh *mesh_object;
@@ -1221,7 +1227,7 @@ update_blender_mesh_object(const UpdateObject& update)
 
     if (geometry == NULL)
     {
-        printf("... ERROR: geometry is NULL!\n");
+        fprintf(stderr, "... ERROR: geometry is NULL!\n");
         if (scene_object == nullptr)
             delete mesh_object;
         return false;
@@ -1257,12 +1263,12 @@ update_blender_mesh_object(const UpdateObject& update)
     SceneMaterialMap::iterator it = scene_materials.find(matname);
     if (it != scene_materials.end())
     {
-        printf("... Material '%s'\n", matname.c_str());
+        DEBUG_MSG("... Material '%s'\n", matname.c_str());
         ospSetObjectAsData(gmodel, "material", OSP_MATERIAL, it->second->material);
     }
     else
     {
-        printf("... WARNING: Material '%s' not found, using default!\n", matname.c_str());
+        fprintf(stderr, "... WARNING: Material '%s' not found, using default!\n", matname.c_str());
         ospSetObjectAsData(gmodel, "material", OSP_MATERIAL, default_materials[current_renderer_type]);
     }
 
@@ -1292,8 +1298,8 @@ update_geometry_object(const UpdateObject& update)
     const std::string& object_name = update.name();
     const std::string& linked_data = update.data_link(); 
 
-    printf("OBJECT '%s' (geometry)\n", object_name.c_str());    
-    printf("--> '%s'\n", linked_data.c_str());
+    DEBUG_MSG("OBJECT '%s' (geometry)\n", object_name.c_str());    
+    DEBUG_MSG("--> '%s'\n", linked_data.c_str());
 
     SceneObject     *scene_object;
     SceneObjectGeometry *geometry_object;
@@ -1330,7 +1336,7 @@ update_geometry_object(const UpdateObject& update)
 
     if (geometry == NULL)
     {
-        printf("... ERROR: geometry is NULL!\n");
+        fprintf(stderr, "... ERROR: geometry is NULL!\n");
         if (scene_object == nullptr)
             delete geometry_object;
         return false;
@@ -1360,12 +1366,12 @@ update_geometry_object(const UpdateObject& update)
     SceneMaterialMap::iterator it = scene_materials.find(matname);
     if (it != scene_materials.end())
     {
-        printf("... Material '%s'\n", matname.c_str()); 
+        DEBUG_MSG("... Material '%s'\n", matname.c_str()); 
         ospSetObjectAsData(gmodel, "material", OSP_MATERIAL, it->second->material);
     }
     else
     {
-        printf("... WARNING: Material '%s' not found, using default!\n", matname.c_str());
+        fprintf(stderr, "... WARNING: Material '%s' not found, using default!\n", matname.c_str());
         ospSetObjectAsData(gmodel, "material", OSP_MATERIAL, default_materials[current_renderer_type]);
     }
     
@@ -1386,8 +1392,8 @@ update_scene_object(const UpdateObject& update)
     const std::string& object_name = update.name();
     const std::string& linked_data = update.data_link();
 
-    printf("OBJECT '%s' (scene)\n", update.name().c_str());    
-    printf("--> '%s'\n", linked_data.c_str());
+    DEBUG_MSG("OBJECT '%s' (scene)\n", update.name().c_str());    
+    DEBUG_MSG("--> '%s'\n", linked_data.c_str());
 
     SceneObject     *scene_object;
     SceneObjectScene *scene_object_scene;       // XXX yuck
@@ -1424,9 +1430,9 @@ update_scene_object(const UpdateObject& update)
     GroupInstances group_instances = state->group_instances;
 
     if (group_instances.size() == 0)
-        printf("... WARNING: no instances to add!\n");
+        fprintf(stderr, "... WARNING: no instances to add!\n");
     else
-        printf("... Adding %d instances to scene\n", group_instances.size());
+        DEBUG_MSG("... Adding %lu instances to scene\n", group_instances.size());
 
     glm::mat4   obj2world;
     float       affine_xform[12];
@@ -1454,7 +1460,7 @@ update_scene_object(const UpdateObject& update)
     const Lights& lights = state->lights;
     if (lights.size() > 0)
     {
-        printf("... Adding %d lights to scene!\n", lights.size());
+        DEBUG_MSG("... Adding %lu lights to scene!\n", lights.size());
         for (OSPLight light : state->lights)
         {
             // XXX Sigh, need to apply object2world transform manually
@@ -1479,8 +1485,8 @@ update_volume_object(const UpdateObject& update, const Volume& volume_settings)
     const std::string& object_name = update.name();
     const std::string& linked_data = update.data_link(); 
 
-    printf("OBJECT '%s' (volume)\n", update.name().c_str()); 
-    printf("--> '%s'\n", linked_data.c_str());  
+    DEBUG_MSG("OBJECT '%s' (volume)\n", update.name().c_str()); 
+    DEBUG_MSG("--> '%s'\n", linked_data.c_str());  
 
     SceneObject         *scene_object;
     SceneObjectVolume   *volume_object;
@@ -1518,7 +1524,7 @@ update_volume_object(const UpdateObject& update, const Volume& volume_settings)
 
     if (volume == NULL)
     {
-        printf("... ERROR: volume is NULL!\n");
+        fprintf(stderr, "... ERROR: volume is NULL!\n");
         delete volume_object;
         return false;
     }    
@@ -1531,7 +1537,7 @@ update_volume_object(const UpdateObject& update, const Volume& volume_settings)
     }
 
     // XXX not sure these are handled correctly, and working in API2
-    //printf("! SAMPLING RATE %.1f\n", volume_settings.sampling_rate());
+    //DEBUG_MSG("! SAMPLING RATE %.1f\n", volume_settings.sampling_rate());
     ospSetFloat(vmodel,  "samplingRate", volume_settings.sampling_rate());
     //ospSetFloat(vmodel,  "densityScale", volume_settings.density_scale());  // TODO
     //ospSetFloat(vmodel,  "anisotropy", volume_settings.anisotropy());  // TODO    
@@ -1540,13 +1546,13 @@ update_volume_object(const UpdateObject& update, const Volume& volume_settings)
 
     if (volume_settings.tf_positions_size() > 0 && volume_settings.tf_colors_size() > 0)
     {
-        printf("... Creating user-defined transfer function\n");
+        DEBUG_MSG("... Creating user-defined transfer function\n");
         tf = create_user_transfer_function(state->volume_data_range[0], state->volume_data_range[1], volume_settings);
     }
     else
     {
         // Default TF        
-        printf("... Creating default cool2warm transfer function\n");
+        DEBUG_MSG("... Creating default cool2warm transfer function\n");
         tf = create_transfer_function("cool2warm", state->volume_data_range[0], state->volume_data_range[1]);
     }
 
@@ -1582,8 +1588,8 @@ update_isosurfaces_object(const UpdateObject& update)
     const std::string& object_name = update.name();
     const std::string& linked_data = update.data_link();    
 
-    printf("OBJECT '%s' (isosurfaces)\n", update.name().c_str()); 
-    printf("--> '%s'\n", linked_data.c_str());     
+    DEBUG_MSG("OBJECT '%s' (isosurfaces)\n", update.name().c_str()); 
+    DEBUG_MSG("--> '%s'\n", linked_data.c_str());     
 
     SceneObject         *scene_object;
     SceneObjectIsosurfaces   *isosurfaces_object;
@@ -1627,7 +1633,7 @@ update_isosurfaces_object(const UpdateObject& update)
 
     if (volume == NULL)
     {
-        printf("... ERROR: volume is NULL!\n");
+        fprintf(stderr, "... ERROR: volume is NULL!\n");
         if (scene_object != nullptr)
             delete isosurfaces_object;
         return false;
@@ -1650,17 +1656,17 @@ update_isosurfaces_object(const UpdateObject& update)
     }
 
     const char *s_custom_properties = update.custom_properties().c_str();
-    //printf("Received custom properties:\n%s\n", s_custom_properties);
+    DEBUG_MSG("Received custom properties:\n%s\n", s_custom_properties);
     const json &custom_properties = json::parse(s_custom_properties);
     if (!custom_properties.empty())
     {
-        printf("... custom properties:\n");
-        printf("%s\n", custom_properties.dump(4).c_str());
+        DEBUG_MSG("... custom properties:\n");
+        DEBUG_MSG("%s\n", custom_properties.dump(4).c_str());
     }
     
     if (custom_properties.find("isovalues") == custom_properties.end())
     {
-        printf("... WARNING: no property 'isovalues' set on object!\n");
+        fprintf(stderr, "... WARNING: no property 'isovalues' set on object!\n");
         return false;
     }
 
@@ -1671,7 +1677,7 @@ update_isosurfaces_object(const UpdateObject& update)
     for (int i = 0; i < n; i++)
     {        
         isovalues[i] = isovalues_prop[i];
-        printf("... isovalue #%d: %.3f\n", i, isovalues[i]);
+        DEBUG_MSG("... isovalue #%d: %.3f\n", i, isovalues[i]);
     }
 
     OSPData isovalues_data = ospNewCopiedData(n, OSP_FLOAT, isovalues);  
@@ -1716,8 +1722,8 @@ add_slice_objects(const UpdateObject& update, const Slices& slices)
 {
     const std::string& linked_data = update.data_link();
 
-    printf("OBJECT '%s' (slices)\n", update.name().c_str());
-    printf("--> '%s'\n", linked_data.c_str());    
+    DEBUG_MSG("OBJECT '%s' (slices)\n", update.name().c_str());
+    DEBUG_MSG("--> '%s'\n", linked_data.c_str());    
 
     if (!scene_data_with_type_exists(linked_data, SDT_PLUGIN))
         return false;
@@ -1730,17 +1736,17 @@ add_slice_objects(const UpdateObject& update, const Slices& slices)
 
     if (volume == nullptr)
     {
-        printf("... ERROR: volume is NULL!\n");
+        fprintf(stderr, "... ERROR: volume is NULL!\n");
         return false;
     }        
 
     const char *s_custom_properties = update.custom_properties().c_str();
-    //printf("Received custom properties:\n%s\n", s_custom_properties);
+    DEBUG_MSG("Received custom properties:\n%s\n", s_custom_properties);
     const json &custom_properties = json::parse(s_custom_properties);
     if (!custom_properties.empty())
     {
-        printf("... custom properties:\n");
-        printf("%s\n", custom_properties.dump(4).c_str());
+        DEBUG_MSG("... custom properties:\n");
+        DEBUG_MSG("%s\n", custom_properties.dump(4).c_str());
     }
 
     SceneObject         *scene_object;
@@ -1760,30 +1766,30 @@ add_slice_objects(const UpdateObject& update, const Slices& slices)
 
         // Get linked geometry
 
-        printf("... linked mesh '%s' (blender mesh)\n", linked_mesh.c_str());    
+        DEBUG_MSG("... linked mesh '%s' (blender mesh)\n", linked_mesh.c_str());    
 
         SceneDataTypeMap::iterator it = scene_data_types.find(linked_mesh);
 
         if (it == scene_data_types.end())
         {
-            printf("--> '%s' | WARNING: linked data not found!\n", linked_mesh.c_str());
+            fprintf(stderr, "--> '%s' | WARNING: linked data not found!\n", linked_mesh.c_str());
             return false;
         }
         else if (it->second != SDT_BLENDER_MESH)
         {
-            printf("--> '%s' | WARNING: linked data is not of type SDT_BLENDER_MESH but of type %s!\n", 
+            fprintf(stderr, "--> '%s' | WARNING: linked data is not of type SDT_BLENDER_MESH but of type %s!\n", 
                 linked_mesh.c_str(), SceneDataType_names[it->second]);
             return false;
         }
         else
-            printf("--> '%s' (blender mesh data)\n", linked_mesh.c_str());
+            DEBUG_MSG("--> '%s' (blender mesh data)\n", linked_mesh.c_str());
 
         BlenderMesh *blender_mesh = blender_meshes[linked_mesh];
         OSPGeometry geometry = blender_mesh->geometry;
 
         if (geometry == nullptr)
         {
-            printf("... ERROR: geometry of blender mesh is NULL!\n");
+            fprintf(stderr, "... ERROR: geometry of blender mesh is NULL!\n");
             return false;
         }                    
 
@@ -1856,8 +1862,8 @@ update_light_object(const UpdateObject& update, const LightSettings& light_setti
     const std::string& object_name = light_settings.object_name();
     //const std::string& linked_data = light_settings.light_name();    
 
-    printf("OBJECT '%s' (light)\n", object_name.c_str());
-    //printf("--> '%s' (blender light data)\n", linked_data.c_str());    // XXX not set for ambient
+    DEBUG_MSG("OBJECT '%s' (light)\n", object_name.c_str());
+    //DEBUG_MSG("--> '%s' (blender light data)\n", linked_data.c_str());    // XXX not set for ambient
 
     SceneObject *scene_object;
     SceneObjectLight *light_object = nullptr;
@@ -1878,7 +1884,7 @@ update_light_object(const UpdateObject& update, const LightSettings& light_setti
 
         if (light_type != light_settings.type())
         {            
-            printf("... Light type changed from %d to %d, replacing with new light\n",
+            DEBUG_MSG("... Light type changed from %d to %d, replacing with new light\n",
                 light_type, light_settings.type());
 
             delete_object(object_name);                    
@@ -1894,7 +1900,7 @@ update_light_object(const UpdateObject& update, const LightSettings& light_setti
     if (light_object == nullptr)
     {            
         light_type = light_settings.type();
-        printf("... Creating new light of type %d\n", light_type);
+        DEBUG_MSG("... Creating new light of type %d\n", light_type);
 
         light_object = new SceneObjectLight;
         switch (light_type)
@@ -1915,7 +1921,7 @@ update_light_object(const UpdateObject& update, const LightSettings& light_setti
             light = ospNewLight("quad");
             break; 
         default:
-            printf("ERROR: unhandled light type %d!\n", light_type);
+            fprintf(stderr, "ERROR: unhandled light type %d!\n", light_type);
         }
 
         light_object->light = light;
@@ -1946,7 +1952,7 @@ update_light_object(const UpdateObject& update, const LightSettings& light_setti
     //else
     // XXX HDRI
 
-    printf("... intensity %.3f, visible %d\n", light_settings.intensity(), light_settings.visible());
+    DEBUG_MSG("... intensity %.3f, visible %d\n", light_settings.intensity(), light_settings.visible());
 
     ospSetVec3f(light, "color", light_settings.color(0), light_settings.color(1), light_settings.color(2));
     ospSetFloat(light, "intensity", light_settings.intensity());
@@ -2188,7 +2194,7 @@ handle_update_object(TCPSocket *sock)
         break;
 
     default:
-        printf("WARNING: unhandled update type %s\n", UpdateObject_Type_descriptor()->FindValueByNumber(update.type())->name().c_str());
+        fprintf(stderr, "WARNING: unhandled update type %s\n", UpdateObject_Type_descriptor()->FindValueByNumber(update.type())->name().c_str());
         break;
     }
 
@@ -2199,14 +2205,14 @@ handle_update_object(TCPSocket *sock)
 void
 update_framebuffer_settings(const std::string& mode, OSPFrameBufferFormat format, uint32_t width, uint32_t height)
 {
-    printf("FRAMEBUFFER %s, %d x %d (format %d)\n", mode.c_str(), width, height, format);
+    DEBUG_MSG("FRAMEBUFFER %s, %d x %d (format %d)\n", mode.c_str(), width, height, format);
 
     if (mode == "final")
     {
         
         if (final_framebuffer_width == width && final_framebuffer_height == height && final_framebuffer_format == format)
         {
-            printf("... No need to update framebuffer dimensions or format\n");
+            DEBUG_MSG("... No need to update framebuffer dimensions or format\n");
             return;
         }
 
@@ -2228,7 +2234,7 @@ update_framebuffer_settings(const std::string& mode, OSPFrameBufferFormat format
         if (interactive_framebuffer_width == width && interactive_framebuffer_height == height && interactive_framebuffer_format == format)
             return;
 
-        printf("... Clearing existing framebuffers (dimensions or format changed)\n");
+        DEBUG_MSG("... Clearing existing framebuffers (dimensions or format changed)\n");
 
         // Clear framebuffers
         framebuffers.clear();
@@ -2244,8 +2250,8 @@ update_framebuffer_settings(const std::string& mode, OSPFrameBufferFormat format
 void
 update_camera(CameraSettings& camera_settings)
 {
-    printf("CAMERA '%s' (camera)\n", camera_settings.object_name().c_str());
-    printf("--> '%s' (camera data)\n", camera_settings.camera_name().c_str());
+    DEBUG_MSG("CAMERA '%s' (camera)\n", camera_settings.object_name().c_str());
+    DEBUG_MSG("--> '%s' (camera data)\n", camera_settings.camera_name().c_str());
 
     float cam_pos[3], cam_viewdir[3], cam_updir[3];
 
@@ -2269,19 +2275,19 @@ update_camera(CameraSettings& camera_settings)
     switch (camera_settings.type())
     {
         case CameraSettings::PERSPECTIVE:
-            printf("... perspective\n");
+            DEBUG_MSG("... perspective\n");
             ospray_camera = ospNewCamera("perspective");
             ospSetFloat(ospray_camera, "fovy",  camera_settings.fov_y());  // Degrees
             break;
 
         case CameraSettings::ORTHOGRAPHIC:
-            printf("... orthographic\n");
+            DEBUG_MSG("... orthographic\n");
             ospray_camera = ospNewCamera("orthographic");
             ospSetFloat(ospray_camera, "height", camera_settings.height());
             break;
 
         case CameraSettings::PANORAMIC:
-            printf("... panoramic\n");
+            DEBUG_MSG("... panoramic\n");
             ospray_camera = ospNewCamera("panoramic");
             break;
 
@@ -2321,7 +2327,7 @@ handle_update_material(TCPSocket *sock)
 
     receive_protobuf(sock, update);
 
-    printf("MATERIAL '%s'\n", update.name().c_str());
+    DEBUG_MSG("MATERIAL '%s'\n", update.name().c_str());
 
     SceneMaterial *scene_material = nullptr;
     OSPMaterial material = nullptr;
@@ -2329,12 +2335,12 @@ handle_update_material(TCPSocket *sock)
     SceneMaterialMap::iterator it = scene_materials.find(update.name());
     if (it != scene_materials.end())
     {
-        printf("... Updating existing material\n");
+        DEBUG_MSG("... Updating existing material\n");
 
         scene_material = it->second;
         if (scene_material->type != update.type())
         {
-            printf("... Material type changed\n");
+            DEBUG_MSG("... Material type changed\n");
             delete scene_material;
             scene_material = nullptr;
             scene_materials.erase(update.name());
@@ -2351,7 +2357,7 @@ handle_update_material(TCPSocket *sock)
         AlloySettings settings;
 
         receive_protobuf(sock, settings);
-        printf("... Alloy\n");
+        DEBUG_MSG("... Alloy\n");
 
         if (scene_material == nullptr)
         {
@@ -2373,7 +2379,7 @@ handle_update_material(TCPSocket *sock)
         CarPaintSettings settings;
 
         receive_protobuf(sock, settings);
-        printf("... Car paint\n");
+        DEBUG_MSG("... Car paint\n");
 
         if (scene_material == nullptr)
         {
@@ -2409,7 +2415,7 @@ handle_update_material(TCPSocket *sock)
         GlassSettings settings;
 
         receive_protobuf(sock, settings);
-        printf("... Glass\n");
+        DEBUG_MSG("... Glass\n");
 
         if (scene_material == nullptr)
         {
@@ -2430,7 +2436,7 @@ handle_update_material(TCPSocket *sock)
         ThinGlassSettings settings;
 
         receive_protobuf(sock, settings);
-        printf("... ThinGlass\n");
+        DEBUG_MSG("... ThinGlass\n");
 
         if (scene_material == nullptr)
         {
@@ -2452,7 +2458,7 @@ handle_update_material(TCPSocket *sock)
         LuminousSettings settings;
 
         receive_protobuf(sock, settings);
-        printf("... Luminous\n");
+        DEBUG_MSG("... Luminous\n");
 
         if (scene_material == nullptr)
         {
@@ -2476,7 +2482,7 @@ handle_update_material(TCPSocket *sock)
 
         const uint32_t& metal = settings.metal();
 
-        printf("... Metal (%d)\n", metal);
+        DEBUG_MSG("... Metal (%d)\n", metal);
 
         assert(metal < 5);
 
@@ -2518,7 +2524,7 @@ handle_update_material(TCPSocket *sock)
         MetallicPaintSettings settings;
 
         receive_protobuf(sock, settings);
-        printf("... MetallicPaint\n");
+        DEBUG_MSG("... MetallicPaint\n");
 
         if (scene_material == nullptr)
         {
@@ -2542,7 +2548,7 @@ handle_update_material(TCPSocket *sock)
         OBJMaterialSettings settings;
 
         receive_protobuf(sock, settings);
-        printf("... OBJMaterial (Kd %.3f,%.3f,%.3f; ...)\n", settings.kd(0), settings.kd(1), settings.kd(2));
+        DEBUG_MSG("... OBJMaterial (Kd %.3f,%.3f,%.3f; ...)\n", settings.kd(0), settings.kd(1), settings.kd(2));
 
         if (scene_material == nullptr)
         {
@@ -2565,7 +2571,7 @@ handle_update_material(TCPSocket *sock)
         PrincipledSettings settings;
 
         receive_protobuf(sock, settings);
-        printf("... Principled\n");
+        DEBUG_MSG("... Principled\n");
 
         if (scene_material == nullptr)
         {
@@ -2611,7 +2617,7 @@ handle_update_material(TCPSocket *sock)
     }
 
     default:
-        printf("ERROR: unknown material update type %d!\n", update.type());
+        fprintf(stderr, "ERROR: unknown material update type %d!\n", update.type());
         return;
 
     }
@@ -2628,7 +2634,7 @@ update_renderer_type(const std::string& type)
     if (type == current_renderer_type)
         return;
 
-    printf("Updating renderer type to '%s'\n", type.c_str());
+    DEBUG_MSG("Updating renderer type to '%s'\n", type.c_str());
 
     ospray_renderer = renderers[type.c_str()];
 
@@ -2641,7 +2647,7 @@ update_renderer_type(const std::string& type)
 bool
 update_render_settings(const RenderSettings& render_settings)
 {
-    printf("Applying render settings\n");
+    DEBUG_MSG("Applying render settings\n");
 
     //ospSetInt(renderer, "spp", 1);
 
@@ -2674,9 +2680,9 @@ update_render_settings(const RenderSettings& render_settings)
 bool
 update_world_settings(const WorldSettings& world_settings)
 {    
-    printf("Updating world settings\n");
+    DEBUG_MSG("Updating world settings\n");
 
-    printf("... ambient color %.3f, %.3f, %.3f; intensity %.3f\n", 
+    DEBUG_MSG("... ambient color %.3f, %.3f, %.3f; intensity %.3f\n", 
         world_settings.ambient_color(0), 
         world_settings.ambient_color(1), 
         world_settings.ambient_color(2), 
@@ -2686,7 +2692,7 @@ update_world_settings(const WorldSettings& world_settings)
     ospSetFloat(ospray_scene_ambient_light, "intensity", world_settings.ambient_intensity());
     ospCommit(ospray_scene_ambient_light);
 
-    printf("... background color %f, %f, %f, %f\n", 
+    DEBUG_MSG("... background color %f, %f, %f, %f\n", 
         world_settings.background_color(0),
         world_settings.background_color(1),
         world_settings.background_color(2),
@@ -2770,7 +2776,7 @@ send_framebuffer(TCPSocket *sock)
     // XXX this also maps/unmaps the framebuffer!
     size_t size = write_framebuffer_exr(FBFILE);
 
-    printf("Sending framebuffer as OpenEXR file, %d bytes\n", size);
+    DEBUG_MSG("Sending framebuffer as OpenEXR file, %d bytes\n", size);
 
     bufsize = size;
     sock->send((uint8_t*)&bufsize, 4);
@@ -2779,7 +2785,7 @@ send_framebuffer(TCPSocket *sock)
     // Send directly
     bufsize = framebuffer_width*framebuffer_height*4*4;
 
-    printf("Sending %d bytes of framebuffer data\n", bufsize);
+    DEBUG_MSG("Sending %d bytes of framebuffer data\n", bufsize);
 
     sock->send(&bufsize, 4);
     sock->sendall((uint8_t*)fb, framebuffer_width*framebuffer_height*4*4);
@@ -2790,7 +2796,7 @@ send_framebuffer(TCPSocket *sock)
     ospUnmapFrameBuffer(fb, framebuffer);
 
     gettimeofday(&t1, NULL);
-    printf("Sent framebuffer in %.3f seconds\n", time_diff(t0, t1));
+    DEBUG_MSG("Sent framebuffer in %.3f seconds\n", time_diff(t0, t1));
 }
 */
 
@@ -2811,7 +2817,7 @@ handle_query_bound(TCPSocket *sock, const std::string& name)
         result.set_success(false);
         result.set_message(msg);
 
-        printf("... FAILED: %s\n", msg);
+        DEBUG_MSG("... FAILED: %s\n", msg);
 
         send_protobuf(sock, result);
 
@@ -2842,7 +2848,7 @@ handle_query_bound(TCPSocket *sock, const std::string& name)
         result.set_success(false);
         result.set_message(msg);
 
-        printf("... FAILED: %s\n", msg);
+        DEBUG_MSG("... FAILED: %s\n", msg);
 
         send_protobuf(sock, result);
     }
@@ -2853,8 +2859,8 @@ handle_query_bound(TCPSocket *sock, const std::string& name)
 bool
 clear_scene(const std::string& type)
 {
-    printf("Clearing scene\n");
-    printf("... type: %s\n", type.c_str());
+    DEBUG_MSG("Clearing scene\n");
+    DEBUG_MSG("... type: %s\n", type.c_str());
         
     if (ospray_world != nullptr)
         ospRelease(ospray_world);
@@ -2915,7 +2921,7 @@ prepare_scene()
         if (ospray_scene_instances_data != nullptr)
             ospRelease(ospray_scene_instances_data);    
 
-        printf("Setting up world with %d instance(s)\n", ospray_scene_instances.size());
+        DEBUG_MSG("Setting up world with %lu instance(s)\n", ospray_scene_instances.size());
 
         if (ospray_scene_instances.size() > 0)
         {
@@ -2928,14 +2934,14 @@ prepare_scene()
         update_ospray_scene_instances = false;
     }
     else
-        printf("World instances (%d) still up-to-date\n", ospray_scene_instances.size());
+        DEBUG_MSG("World instances (%lu) still up-to-date\n", ospray_scene_instances.size());
 
     if (update_ospray_scene_lights)
     {
         if (ospray_scene_lights_data != nullptr)
             ospRelease(ospray_scene_lights_data);
     
-        printf("Setting up %d light(s) in the world\n", ospray_scene_lights.size());
+        DEBUG_MSG("Setting up %lu light(s) in the world\n", ospray_scene_lights.size());
 
         if (ospray_scene_lights.size() > 0)
         {
@@ -2948,7 +2954,7 @@ prepare_scene()
         update_ospray_scene_lights = false;
     }
     else
-        printf("World lights (%d) still up-to-date\n", ospray_scene_lights.size());
+        DEBUG_MSG("World lights (%lu) still up-to-date\n", ospray_scene_lights.size());
 
     ospCommit(ospray_world);
 
@@ -2967,7 +2973,7 @@ handle_hello(TCPSocket *sock, const ClientMessage& client_message)
     {
         char s[256];
         sprintf(s, "Client protocol version %d does not match our protocol version %d", client_version, PROTOCOL_VERSION);
-        printf("ERROR: %s\n", s);
+        fprintf(stderr, "ERROR: %s\n", s);
 
         result.set_success(false);
         result.set_message(s);
@@ -2975,7 +2981,7 @@ handle_hello(TCPSocket *sock, const ClientMessage& client_message)
     } 
     else
     {
-        //printf("Got HELLO message, client protocol version %d matches ours\n", client_version);
+        DEBUG_MSG("Got HELLO message, client protocol version %d matches ours\n", client_version);
         result.set_success(true);
     }
 
@@ -3001,7 +3007,7 @@ ensure_idle_render_mode()
 
     render_mode = RM_IDLE;
 
-    printf("Canceled active render\n");
+    DEBUG_MSG("Canceled active render\n");
 }
 
 // Returns false on socket errors
@@ -3024,7 +3030,7 @@ handle_client_message(TCPSocket *sock, const ClientMessage& client_message, bool
 
         case ClientMessage::BYE:
             // XXX if we were still rendering, handle the chaos
-            printf("Got BYE message\n");
+            DEBUG_MSG("Got BYE message\n");
             ensure_idle_render_mode();
             sock->close();
             if (render_mode == RM_INTERACTIVE && render_output_socket != nullptr)
@@ -3038,7 +3044,7 @@ handle_client_message(TCPSocket *sock, const ClientMessage& client_message, bool
         case ClientMessage::QUIT:
             // XXX if we were still rendering, handle the chaos
             // XXX exit server
-            printf("Got QUIT message\n");
+            DEBUG_MSG("Got QUIT message\n");
             ensure_idle_render_mode();
             sock->close();
             if (render_mode == RM_INTERACTIVE && render_output_socket != nullptr)
@@ -3156,7 +3162,7 @@ handle_client_message(TCPSocket *sock, const ClientMessage& client_message, bool
         case ClientMessage::CANCEL_RENDERING:
             if (render_mode == RM_IDLE)
             {
-                printf("WARNING: ignoring CANCEL request as we're not rendering!\n");
+                fprintf(stderr, "WARNING: ignoring CANCEL request as we're not rendering!\n");
                 break;
             }
 
@@ -3166,7 +3172,7 @@ handle_client_message(TCPSocket *sock, const ClientMessage& client_message, bool
         case ClientMessage::REQUEST_RENDER_OUTPUT:
             if (render_mode != RM_IDLE)
             {
-                printf("WARNING: ignoring REQUEST_RENDER_OUTPUT request as we are currently rendering!\n");
+                fprintf(stderr, "WARNING: ignoring REQUEST_RENDER_OUTPUT request as we are currently rendering!\n");
                 sock->close();
                 connection_done = true;
                 return false;
@@ -3174,20 +3180,20 @@ handle_client_message(TCPSocket *sock, const ClientMessage& client_message, bool
 
             if (render_output_socket != nullptr)
             {
-                printf("ERROR: there is already a render output socket set!\n");
+                fprintf(stderr, "ERROR: there is already a render output socket set!\n");
                 sock->close();
                 connection_done = true;
                 return false;
             }
 
-            printf("Using separate socket for sending render output (only for interactive rendering)\n");
+            DEBUG_MSG("Using separate socket for sending render output (only for interactive rendering)\n");
             render_output_socket = sock;
 
             connection_done = true;
             break;
 
         default:
-            printf("WARNING: unhandled client message %d!\n", client_message.type());
+            fprintf(stderr, "WARNING: unhandled client message %d!\n", client_message.type());
     }
 
     return true;
@@ -3201,13 +3207,13 @@ start_rendering(const ClientMessage& client_message)
 
     if (render_mode != RM_IDLE)
     {        
-        printf("Received START_RENDERING message, but we're already rendering, ignoring!\n");                        
+        DEBUG_MSG("Received START_RENDERING message, but we're already rendering, ignoring!\n");                        
         return;                        
     }
 
     auto& mode = client_message.string_value();
 
-    printf("Starting %s rendering\n", mode.c_str());
+    DEBUG_MSG("Starting %s rendering\n", mode.c_str());
 
     gettimeofday(&rendering_start_time, NULL);    
 
@@ -3246,10 +3252,10 @@ start_rendering(const ClientMessage& client_message)
                 factor >>= 1;
             }
 
-            printf("... Reduction factors: ");
+            DEBUG_MSG("... Reduction factors: ");
             for (auto& factor : framebuffer_reduction_factors)
-                printf("%d ", factor);
-            printf("\n");
+                DEBUG_MSG("%d ", factor);
+            DEBUG_MSG("\n");
 
             // Allocate new set of framebuffers
 
@@ -3258,7 +3264,7 @@ start_rendering(const ClientMessage& client_message)
                 reduced_framebuffer_width = interactive_framebuffer_width / factor;
                 reduced_framebuffer_height = interactive_framebuffer_height / factor;
 
-                printf("... Initializing framebuffer of %dx%d pixels (%dx%d @ reduction factor %d), format %d\n", 
+                DEBUG_MSG("... Initializing framebuffer of %dx%d pixels (%dx%d @ reduction factor %d), format %d\n", 
                     reduced_framebuffer_width, reduced_framebuffer_height, 
                     interactive_framebuffer_width, interactive_framebuffer_height, factor, 
                     interactive_framebuffer_format);
@@ -3293,15 +3299,15 @@ start_rendering(const ClientMessage& client_message)
     if (dump_server_state)
         print_server_state();    
 
-    printf("Rendering %d samples (%s):\n", render_samples, mode.c_str());
+    DEBUG_MSG("Rendering %d samples (%s):\n", render_samples, mode.c_str());
 
     // XXX move this to rendering loop
     if (render_mode == RM_INTERACTIVE)
-        printf("[1:%d] ", framebuffer_reduction_factor);
+        DEBUG_MSG("[1:%d] ", framebuffer_reduction_factor);
     else
-        printf("[%d/%d] ", current_sample, render_samples);
+        DEBUG_MSG("[%d/%d] ", current_sample, render_samples);
 
-    printf("I:%d L:%d m:%d | ", ospray_scene_instances.size(), ospray_scene_lights.size(), scene_materials.size());
+    DEBUG_MSG("I:%d L:%d m:%d | ", ospray_scene_instances.size(), ospray_scene_lights.size(), scene_materials.size());
     fflush(stdout);    
 
     gettimeofday(&frame_start_time, NULL);
@@ -3309,7 +3315,7 @@ start_rendering(const ClientMessage& client_message)
     render_future = ospRenderFrame(framebuffer, ospray_renderer, ospray_camera, ospray_world);
     
     if (render_future == nullptr)
-        printf("ERROR: ospRenderFrame() returned NULL!\n");
+        fprintf(stderr, "ERROR: ospRenderFrame() returned NULL!\n");
 }
    
 // Connection handling
@@ -3350,15 +3356,15 @@ handle_connection(TCPSocket *sock)
 
             if (dump_client_messages)
             {
-                printf("<<< Client message (type %s) <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n",
+                DEBUG_MSG("<<< Client message (type %s) <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n",
                     ClientMessage_Type_Name(client_message.type()).c_str());
-                printf("%s\n", client_message.DebugString().c_str());
-                printf("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n");
+                DEBUG_MSG("%s\n", client_message.DebugString().c_str());
+                DEBUG_MSG("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n");
             }
 
             if (!handle_client_message(sock, client_message, connection_done))
             {
-                printf("Failed to handle client message, goodbye!\n");
+                fprintf(stderr, "Failed to handle client message, goodbye!\n");
                 return false;
             }
 
@@ -3372,7 +3378,7 @@ handle_connection(TCPSocket *sock)
         // Check for cancel before writing framebuffer to file
         if (cancel_rendering)
         {    
-            printf("CANCELING RENDER...\n");
+            DEBUG_MSG("CANCELING RENDER...\n");
 
             // See https://github.com/ospray/ospray/issues/368
             ospCancel(render_future);
@@ -3382,7 +3388,7 @@ handle_connection(TCPSocket *sock)
             render_future = nullptr;
 
             gettimeofday(&now, NULL);
-            printf("Rendering cancelled after %.3f seconds\n", time_diff(rendering_start_time, now));
+            DEBUG_MSG("Rendering cancelled after %.3f seconds\n", time_diff(rendering_start_time, now));
 
             render_result.set_type(RenderResult::CANCELED);
 
@@ -3416,7 +3422,7 @@ handle_connection(TCPSocket *sock)
 
         variance = ospGetVariance(framebuffer);
         
-        printf("Frame %7.3f s | Var %5.3f | Mem %7.1f MB ", 
+        DEBUG_MSG("Frame %7.3f s | Var %5.3f | Mem %7.1f MB ", 
                 time_diff(frame_start_time, frame_end_time), variance, mem_usage);
 
         mem_usage = memory_usage();
@@ -3463,8 +3469,8 @@ handle_connection(TCPSocket *sock)
 
                 stat(fname, &st);
 
-                gettimeofday(&now, NULL);
-                printf("| Save FB %6.3f s | EXR file %.1f MB\n", time_diff(frame_end_time, now), st.st_size/1000000.0f);
+            gettimeofday(&now, NULL);
+            DEBUG_MSG("| Save FB %6.3f s | EXR file %.1f MB\n", time_diff(frame_end_time, now), st.st_size/1000000.0f);
 
                 render_result.set_file_name(fname);
                 render_result.set_file_size(st.st_size);
@@ -3483,7 +3489,7 @@ handle_connection(TCPSocket *sock)
                 render_result.set_file_name("<skipped>");
                 render_result.set_file_size(0);
                 
-                printf("| Skipped FB\n");
+                DEBUG_MSG("| Skipped FB\n");
                 
                 send_protobuf(sock, render_result);
             }
@@ -3525,9 +3531,9 @@ handle_connection(TCPSocket *sock)
 
             gettimeofday(&now, NULL);
             if (render_output_socket != nullptr)
-                printf("| Send FB* %6.3f s | Pixels %6.1f MB\n", time_diff(frame_end_time, now), bufsize/1000000.0f);
+                DEBUG_MSG("| Send FB* %6.3f s | Pixels %6.1f MB\n", time_diff(frame_end_time, now), bufsize/1000000.0f);
             else
-                printf("| Send FB %6.3f s | Pixels %6.1f MB\n", time_diff(frame_end_time, now), bufsize/1000000.0f);  
+                DEBUG_MSG("| Send FB %6.3f s | Pixels %6.1f MB\n", time_diff(frame_end_time, now), bufsize/1000000.0f);  
         }
 
         // Check if we're done rendering
@@ -3550,7 +3556,7 @@ handle_connection(TCPSocket *sock)
                 send_protobuf(sock, render_result);
 
             gettimeofday(&now, NULL);
-            printf("Rendering done in %.3f seconds (%.3f seconds/sample)\n", 
+            DEBUG_MSG("Rendering done in %.3f seconds (%.3f seconds/sample)\n", 
                 time_diff(rendering_start_time, now), time_diff(rendering_start_time, now)/render_samples);
 
             render_mode = RM_IDLE;
@@ -3575,12 +3581,11 @@ handle_connection(TCPSocket *sock)
             }        
             
             if (framebuffer_reduction_index > 0)
-                printf("[1:%d] ", framebuffer_reduction_factor);
+                DEBUG_MSG("[1:%d] ", framebuffer_reduction_factor);
             else
-                printf("[%d/%d] ", current_sample, render_samples);
+                DEBUG_MSG("[%d/%d] ", current_sample, render_samples);
 
-            printf("I:%d L:%d m:%d | ", ospray_scene_instances.size(), ospray_scene_lights.size(), scene_materials.size());
-
+            DEBUG_MSG("I:%lu L:%lu m:%lu | ", ospray_scene_instances.size(), ospray_scene_lights.size(), scene_materials.size());
             fflush(stdout);
             
             gettimeofday(&frame_start_time, NULL);
@@ -3588,7 +3593,7 @@ handle_connection(TCPSocket *sock)
             render_future = ospRenderFrame(framebuffer, ospray_renderer, ospray_camera, ospray_world);
 
             if (render_future == nullptr)
-                printf("ERROR: ospRenderFrame() returned NULL!\n");
+                fprintf(stderr, "ERROR: ospRenderFrame() returned NULL!\n");
         }
     }
 
@@ -3596,7 +3601,7 @@ handle_connection(TCPSocket *sock)
 
     if (render_output_socket != nullptr)
     {
-        printf("Closing render output connection\n");
+        DEBUG_MSG("Closing render output connection\n");
         render_output_socket->close();
         render_output_socket = nullptr;
     }
@@ -3629,9 +3634,9 @@ prepare_renderers()
 void
 ospray_error(OSPError e, const char *error)
 {
-    printf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
-    printf("OSPRAY ERROR: %s\n", error);
-    printf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
+    fprintf(stderr, "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
+    fprintf(stderr, "OSPRAY ERROR: %s\n", error);
+    fprintf(stderr, "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
 
     if (abort_on_ospray_error)
         abort();
@@ -3640,9 +3645,9 @@ ospray_error(OSPError e, const char *error)
 void
 ospray_status(const char *message)
 {
-    printf("--------------------------------------------------\n");
-    printf("OSPRAY STATUS: %s\n", message);
-    printf("--------------------------------------------------\n");
+    fprintf(stderr, "--------------------------------------------------\n");
+    fprintf(stderr, "OSPRAY STATUS: %s\n", message);
+    fprintf(stderr, "--------------------------------------------------\n");
 }
 
 // Main
@@ -3650,12 +3655,12 @@ ospray_status(const char *message)
 int
 main(int argc, const char **argv)
 {
-    printf("BLOSPRAY render server %d.%d\n", BLOSPRAY_VERSION_MAJOR, BLOSPRAY_VERSION_MINOR);    
+    DEBUG_MSG("BLOSPRAY render server %d.%d\n", BLOSPRAY_VERSION_MAJOR, BLOSPRAY_VERSION_MINOR);    
 
 #if defined(__SANITIZE_ADDRESS__)
-    printf("\n");
-    printf("Note: compiled with AddressSanitizer support, performance will be impacted\n");
-    printf("\n");
+    DEBUG_MSG("\n");
+    DEBUG_MSG("Note: compiled with AddressSanitizer support, performance will be impacted\n");
+    DEBUG_MSG("\n");
 #endif
 
     // Verify that the version of the library that we linked against is

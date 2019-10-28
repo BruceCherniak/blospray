@@ -69,18 +69,18 @@ def setup_logging(logger_name, logfile, console=True):
     
     logger = logging.getLogger(logger_name)
     logger.propagate = False
-    logger.setLevel(logging.DEBUG)
+    logger.setLevel(logging.ERROR)
 
     # Log all to file, truncates existing file
     file_handler = logging.FileHandler(logfile, mode='w')
-    file_handler.setLevel(logging.DEBUG)
+    file_handler.setLevel(logging.ERROR)
     file_handler.setFormatter(formatter)
     logger.addHandler(file_handler)
 
     # Log info and higher to console
     if console:
         console_handler = logging.StreamHandler()
-        console_handler.setLevel(logging.DEBUG)
+        console_handler.setLevel(logging.ERROR)
         console_handler.setFormatter(formatter)
         logger.addHandler(console_handler)
 
@@ -144,7 +144,7 @@ class ReceiveRenderResultThread(threading.Thread):
         while True:
 
             if self._cancel.is_set():                
-                self.log.error('(RRR thread) Got request to cancel thread, sending CANCEL_RENDERING to server')
+                self.log.info('(RRR thread) Got request to cancel thread, sending CANCEL_RENDERING to server')
                 client_message = ClientMessage()
                 client_message.type = ClientMessage.CANCEL_RENDERING
                 self.connection.send_protobuf(client_message)                    
@@ -205,7 +205,7 @@ class ReceiveRenderResultThread(threading.Thread):
 
                 if render_result.type == RenderResult.FRAME:                    
                     # XXX can keep buffer if res didn't change
-                    print('allocating empty %d x %d' % (render_result.width, render_result.height))
+                    self.log.debug('allocating empty %d x %d' % (render_result.width, render_result.height))
                     
                     mode = 'f'                    
                     bytes_left = render_result.file_size
@@ -250,7 +250,7 @@ class ReceiveRenderResultThread(threading.Thread):
                     # Engine has gone away
                     break
                 
-        self.log.error('(RRR thread) Done')
+        self.log.info('(RRR thread) Done')
 
     
 class OsprayRenderEngine(bpy.types.RenderEngine):
@@ -330,7 +330,7 @@ class OsprayRenderEngine(bpy.types.RenderEngine):
         self.receive_render_result_thread.cancel()
         self.receive_render_result_thread.join()
         t1 = time.time()
-        print('***************** CANCEL AND JOIN: %f' % (t1-t0))
+        self.log.info('***************** CANCEL AND JOIN: %f' % (t1-t0))
         self.receive_render_result_thread = None
         self.log.debug('cancel_render_thread(): Render thread canceled')         
     
@@ -719,7 +719,7 @@ class CustomDrawData:
         bgl.glBindVertexArray(0)
 
     def __del__(self):
-        print('[%s] CustomDrawData.__del__() [%s]' % (time.asctime(), self))        
+        self.log.info('[%s] CustomDrawData.__del__() [%s]' % (time.asctime(), self))        
         bgl.glDeleteBuffers(2, self.vertex_buffer)
         bgl.glDeleteVertexArrays(1, self.vertex_array)
         bgl.glBindTexture(bgl.GL_TEXTURE_2D, 0)
