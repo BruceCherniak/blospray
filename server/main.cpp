@@ -3469,8 +3469,8 @@ handle_connection(TCPSocket *sock)
 
                 stat(fname, &st);
 
-            gettimeofday(&now, NULL);
-            DEBUG_MSG("| Save FB %6.3f s | EXR file %.1f MB\n", time_diff(frame_end_time, now), st.st_size/1000000.0f);
+                gettimeofday(&now, NULL);
+                DEBUG_MSG("| Save FB %6.3f s | EXR file %.1f MB\n", time_diff(frame_end_time, now), st.st_size/1000000.0f);
 
                 render_result.set_file_name(fname);
                 render_result.set_file_size(st.st_size);
