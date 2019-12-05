@@ -1126,7 +1126,7 @@ handle_update_blender_mesh_data(TCPSocket *sock, const std::string& name)
 
     if (nv == 0 || nt == 0)
     {
-        fprintf(stderr, stderr, "... WARNING: mesh without vertices/triangles not allowed, ignoring!\n");
+        fprintf(stderr, "... WARNING: mesh without vertices/triangles not allowed, ignoring!\n");
         // XXX release geometry
         return false;
     }
